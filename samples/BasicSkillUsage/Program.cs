@@ -32,7 +32,7 @@ Console.WriteLine(promptXml);
 Console.WriteLine();
 
 // 5. Analyze sample C# files using the skill's review checklist
-var sampleCodeDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "sample-code"));
+var sampleCodeDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "sample-code"));
 var sampleFiles = Directory.GetFiles(sampleCodeDir, "*.cs");
 
 Console.WriteLine($"=== Analyzing {sampleFiles.Length} files with '{skill.Properties.Name}' skill ===\n");

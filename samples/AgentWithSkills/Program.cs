@@ -1,22 +1,30 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using OllamaSharp;
 using elbruno.Extensions.AI.Skills;
 
-// === Sample: Creating an Agent with Skills ===
+// === Sample: Creating an Agent with Skills using Ollama ===
 
-Console.WriteLine("=== AI Agent with Skills Integration ===\n");
+// Configuration — change these to match your Ollama setup
+var ollamaEndpoint = "http://localhost:11434";
+var ollamaModel = "llama3.2";
+
+Console.WriteLine("=== AI Agent with Skills Integration (Ollama) ===\n");
+Console.WriteLine($"Ollama endpoint: {ollamaEndpoint}");
+Console.WriteLine($"Model: {ollamaModel}\n");
 
 // 1. Set up dependency injection container
 var services = new ServiceCollection();
 
-// 2. Add logging (to see what's happening behind the scenes)
+// 2. Add logging
 services.AddLogging(builder => builder
     .AddConsole()
     .SetMinimumLevel(LogLevel.Information));
 
-// 3. Register a mock chat client (in production, use real LLM client like OpenAI, Anthropic, etc.)
-services.AddSingleton<IChatClient>(sp => new MockAgentChatClient());
+// 3. Register OllamaSharp as the IChatClient
+services.AddSingleton<IChatClient>(sp =>
+    new OllamaApiClient(ollamaEndpoint, ollamaModel));
 
 // 4. Register Agent Skills and configure skill directories
 var skillsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "skills"));
@@ -45,115 +53,40 @@ foreach (var skill in skills)
 }
 Console.WriteLine();
 
-// 8. Run an agent conversation
-Console.WriteLine("=== Agent Conversation ===\n");
-
-var conversationHistory = new List<ChatMessage>
-{
-    new(ChatRole.System, "You are a helpful coding assistant. Use the available skills to help the user."),
-    new(ChatRole.User, "Can you review the following C# code for security issues?\n\n" +
-                       "```csharp\n" +
-                       "public void Login(string username, string password)\n" +
-                       "{\n" +
-                       "    var sql = \"SELECT * FROM Users WHERE Username='\" + username + \"' AND Password='\" + password + \"'\";\n" +
-                       "    var result = ExecuteQuery(sql).Result;\n" +
-                       "}\n" +
-                       "```")
-};
-
-Console.WriteLine("User: Can you review the following C# code for security issues?");
-Console.WriteLine();
-
-// 9. Get agent response (the SkillsChatClient automatically injects skills into the prompt)
-var response = await chatClient.GetResponseAsync(conversationHistory);
-
-Console.WriteLine($"Agent: {response.Text}");
-Console.WriteLine();
-
-// 10. Continue the conversation with a follow-up
-conversationHistory.Add(response.Messages.Last());
-conversationHistory.Add(new ChatMessage(ChatRole.User, "What specific changes should I make?"));
-
-Console.WriteLine("User: What specific changes should I make?");
-Console.WriteLine();
-
-var followUpResponse = await chatClient.GetResponseAsync(conversationHistory);
-Console.WriteLine($"Agent: {followUpResponse.Text}");
-Console.WriteLine();
-
-// 11. Show what was injected into the prompt
-Console.WriteLine("=== Behind the Scenes ===");
-Console.WriteLine("The SkillsChatClient automatically injected the following skills prompt:\n");
+// 8. Show what will be injected into the prompt
+Console.WriteLine("=== Skills Prompt (injected automatically) ===\n");
 var skillsPrompt = skillProvider.GetAvailableSkillsPrompt();
 Console.WriteLine(skillsPrompt);
+Console.WriteLine();
 
-Console.WriteLine("\nAgent successfully used skills from the skills directory!");
+// 9. Load sample code files for the agent to review
+var sampleCodeDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "sample-code"));
+var sampleFiles = Directory.GetFiles(sampleCodeDir, "*.cs").OrderBy(f => f).ToArray();
 
-/// <summary>
-/// Mock chat client that simulates an AI agent using skills.
-/// In production, replace this with a real LLM client (e.g., OpenAI, Anthropic).
-/// </summary>
-internal class MockAgentChatClient : IChatClient
+Console.WriteLine($"=== Reviewing {sampleFiles.Length} sample files with Ollama ===\n");
+
+foreach (var file in sampleFiles)
 {
-    public Task<ChatResponse> GetResponseAsync(
-        IEnumerable<ChatMessage> messages,
-        ChatOptions? options = null,
-        CancellationToken cancellationToken = default)
+    var fileName = Path.GetFileName(file);
+    var sourceCode = File.ReadAllText(file);
+
+    Console.WriteLine(new string('=', 60));
+    Console.WriteLine($"File: {fileName} ({sourceCode.Split('\n').Length} lines)");
+    Console.WriteLine(new string('=', 60));
+
+    // 10. Build conversation with the sample code
+    var conversationHistory = new List<ChatMessage>
     {
-        // Check if skills were injected
-        var systemMessage = messages.FirstOrDefault(m => m.Role == ChatRole.System);
-        var hasSkills = systemMessage?.Text?.Contains("available_skills") ?? false;
+        new(ChatRole.System, "You are a helpful coding assistant. Use the available skills to help the user."),
+        new(ChatRole.User, $"Review the following C# code for bugs, security issues, and best practices. Be concise.\n\n```csharp\n{sourceCode}\n```")
+    };
 
-        var lastUserMessage = messages.LastOrDefault(m => m.Role == ChatRole.User)?.Text ?? "";
+    // 11. Get agent response (the SkillsChatClient automatically injects skills into the prompt)
+    Console.WriteLine("\nAgent is thinking...\n");
+    var response = await chatClient.GetResponseAsync(conversationHistory);
 
-        // Simulate agent reasoning based on available skills
-        var response = lastUserMessage switch
-        {
-            var msg when msg.Contains("review") && msg.Contains("code") && hasSkills =>
-                "Based on the code-review skill, I've identified several critical issues:\n\n" +
-                "1. **SQL Injection Vulnerability**: The code concatenates user input directly into SQL queries. " +
-                "Use parameterized queries instead.\n\n" +
-                "2. **Blocking Async Call**: Using `.Result` on an async method can cause deadlocks. " +
-                "Use `await` instead.\n\n" +
-                "3. **Plaintext Password**: The password should be hashed before comparison.\n\n" +
-                "These issues are flagged by the code-review skill's security checklist.",
-
-            var msg when msg.Contains("What specific changes") =>
-                "Here's the corrected version:\n\n" +
-                "```csharp\n" +
-                "public async Task<bool> LoginAsync(string username, string passwordHash)\n" +
-                "{\n" +
-                "    var sql = \"SELECT * FROM Users WHERE Username=@username AND PasswordHash=@passwordHash\";\n" +
-                "    using var command = new SqlCommand(sql, connection);\n" +
-                "    command.Parameters.AddWithValue(\"@username\", username);\n" +
-                "    command.Parameters.AddWithValue(\"@passwordHash\", passwordHash);\n" +
-                "    var result = await command.ExecuteReaderAsync();\n" +
-                "    return result.HasRows;\n" +
-                "}\n" +
-                "```\n\n" +
-                "Key changes:\n" +
-                "- Used parameterized queries to prevent SQL injection\n" +
-                "- Made the method async and used await properly\n" +
-                "- Accept a password hash instead of plaintext password",
-
-            _ when hasSkills =>
-                "I have access to several skills including code review. How can I help you today?",
-
-            _ =>
-                "Hello! I'm a helpful assistant. What can I do for you?"
-        };
-
-        var responseMessage = new ChatMessage(ChatRole.Assistant, response);
-        return Task.FromResult(new ChatResponse(responseMessage));
-    }
-
-    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
-        IEnumerable<ChatMessage> messages,
-        ChatOptions? options = null,
-        CancellationToken cancellationToken = default)
-        => throw new NotImplementedException("Streaming not implemented in mock client");
-
-    public object? GetService(Type serviceType, object? serviceKey = null) => null;
-
-    public void Dispose() { }
+    Console.WriteLine($"Agent:\n{response.Text}");
+    Console.WriteLine();
 }
+
+Console.WriteLine("\nDone! The agent reviewed all sample files using skills injected by SkillsChatClient middleware.");

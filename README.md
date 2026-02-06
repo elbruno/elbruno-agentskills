@@ -20,6 +20,40 @@ Built with Microsoft.Extensions.AI, the C# MCP SDK, and modern .NET patterns.
 dotnet add package elbruno.Extensions.AI.Skills
 ```
 
+### Point to a skills folder and use with an agent
+
+This is all you need — point the library at a folder containing skills, and they are automatically discovered and injected into your agent's system prompt:
+
+```csharp
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using OllamaSharp;
+using elbruno.Extensions.AI.Skills;
+
+var services = new ServiceCollection();
+
+// Register your LLM client (Ollama, OpenAI, Anthropic, etc.)
+services.AddSingleton<IChatClient>(new OllamaApiClient("http://localhost:11434", "llama3.2"));
+
+// Point to a folder with skills — they are auto-discovered and injected into prompts
+services.AddAgentSkills(o => o.AutoDiscover = true)
+    .WithSkillDirectories("./skills")
+    .WithChatClient();
+
+var sp = services.BuildServiceProvider();
+var chatClient = sp.GetRequiredService<IChatClient>();
+
+// That's it! Skills are automatically injected as <available_skills> XML in system prompts
+var response = await chatClient.GetResponseAsync([
+    new(ChatRole.System, "You are a helpful coding assistant."),
+    new(ChatRole.User, "Review this code for security issues: var sql = \"SELECT * FROM Users WHERE Name='\" + name + \"'\";")
+]);
+
+Console.WriteLine(response.Text);
+```
+
+The `./skills` folder contains skill subdirectories, each with a `SKILL.md` file. The `SkillsChatClient` middleware automatically injects all discovered skills into every request's system prompt — no manual wiring needed.
+
 ### Core API (parse, validate, generate)
 
 ```csharp

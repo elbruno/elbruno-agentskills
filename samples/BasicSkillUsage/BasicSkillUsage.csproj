@@ -9,10 +9,10 @@
     <ProjectReference Include="..\..\src\elbruno.Extensions.AI.Skills.Core\elbruno.Extensions.AI.Skills.Core.csproj" />
   </ItemGroup>
 
-  <!-- Exclude sample code files from compilation - they are analyzed at runtime -->
+  <!-- Include shared sample code files for runtime analysis (not compiled) -->
   <ItemGroup>
-    <Compile Remove="sample-code\**" />
-    <None Include="sample-code\**" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Remove="..\sample-code\**" />
+    <None Include="..\sample-code\**" Link="sample-code\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
