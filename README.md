@@ -181,6 +181,20 @@ The library follows the same patterns as the [C# MCP SDK](https://github.com/mod
 - **Microsoft.Extensions.AI** — IChatClient integration
 - **ModelContextProtocol** — MCP bridge
 
+## Roadmap
+
+This is **v0.1** — the foundational layer for the [Agent Skills specification](https://agentskills.io/specification). The following spec features are **not yet supported** and planned for future releases:
+
+| Feature | Spec Section | Status |
+|---------|-------------|--------|
+| **`scripts/` directory** | Executable code (Python, Bash, JS) that agents can run | Planned |
+| **`references/` directory** | Additional docs loaded on demand (`REFERENCE.md`, domain files) | Planned |
+| **`assets/` directory** | Static resources — templates, images, data files, schemas | Planned |
+| **File reference resolution** | Resolving relative paths from `SKILL.md` to bundled files | Planned |
+| **Progressive disclosure (Level 3)** | On-demand loading of resources from `scripts/`, `references/`, `assets/` | Planned |
+
+Contributions and feedback are welcome!
+
 ## License
 
 MIT
