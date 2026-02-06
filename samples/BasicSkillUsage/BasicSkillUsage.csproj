@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BasicSkillUsage</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\elbruno.Extensions.AI.Skills.Core\elbruno.Extensions.AI.Skills.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Exclude sample code files from compilation - they are analyzed at runtime -->
+  <ItemGroup>
+    <Compile Remove="sample-code\**" />
+    <None Include="sample-code\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

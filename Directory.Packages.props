@@ -1,0 +1,29 @@
+<Project>
+  <ItemGroup>
+    <!-- Core dependencies -->
+    <PackageVersion Include="YamlDotNet" Version="16.3.0" />
+
+    <!-- Microsoft.Extensions.AI -->
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="9.5.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="9.5.0" />
+
+    <!-- DI and Options -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Extensions.FileProviders.Physical" Version="10.0.2" />
+
+    <!-- MCP SDK -->
+    <PackageVersion Include="ModelContextProtocol" Version="0.7.0-preview.1" />
+
+    <!-- CLI -->
+    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+
+    <!-- Testing -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.0" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>elbruno.Extensions.AI.Skills.Core</RootNamespace>
+    <Description>Core models, parser, validator, and prompt generator for the Agent Skills specification.</Description>
+    <PackageId>elbruno.Extensions.AI.Skills.Core</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/elbruno.Extensions.AI.Skills.Core/elbruno.Extensions.AI.Skills.Core.csproj" />
+    <Project Path="src/elbruno.Extensions.AI.Skills/elbruno.Extensions.AI.Skills.csproj" />
+    <Project Path="src/elbruno.Extensions.AI.Skills.Cli/elbruno.Extensions.AI.Skills.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/elbruno.Extensions.AI.Skills.Core.Tests/elbruno.Extensions.AI.Skills.Core.Tests.csproj" />
+    <Project Path="tests/elbruno.Extensions.AI.Skills.Tests/elbruno.Extensions.AI.Skills.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/BasicSkillUsage/BasicSkillUsage.csproj" />
+  </Folder>
+</Solution>
