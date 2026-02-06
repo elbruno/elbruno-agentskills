@@ -6,4 +6,23 @@
     <LangVersion>preview</LangVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
+
+  <!-- NuGet package metadata (shared across all projects) -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Authors>elbruno</Authors>
+    <Company>elbruno</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/elbruno/elbruno-agentskills</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/elbruno/elbruno-agentskills.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>agent-skills;ai;llm;anthropic;dotnet;microsoft-extensions-ai;mcp</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 El Bruno</Copyright>
+  </PropertyGroup>
+
+  <!-- Include README in NuGet packages for src projects -->
+  <ItemGroup Condition="$(MSBuildProjectDirectory.Contains('src'))">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 </Project>
