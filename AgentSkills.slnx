@@ -10,5 +10,6 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/BasicSkillUsage/BasicSkillUsage.csproj" />
+    <Project Path="samples/AgentWithSkills/AgentWithSkills.csproj" />
   </Folder>
 </Solution>

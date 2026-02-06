@@ -45,39 +45,6 @@ dotnet run --project samples/BasicSkillUsage
 4. **Multi-turn conversations** - Agent maintains context across multiple user messages
 5. **Mock LLM client** - Demonstrates the IChatClient pattern (replace with real LLM provider)
 
-### Setup Instructions
-
-Due to a technical limitation, please manually create the directory and files:
-
-**1. Create the directory:**
-```bash
-mkdir samples\AgentWithSkills
-```
-
-**2. Create `samples\AgentWithSkills\AgentWithSkills.csproj`:**
-```xml
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>AgentWithSkills</RootNamespace>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\elbruno.Extensions.AI.Skills\elbruno.Extensions.AI.Skills.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.AI" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
-  </ItemGroup>
-
-</Project>
-```
-
-**3. Create `samples\AgentWithSkills\Program.cs`** - see full source below.
-
 ### Run
 
 ```bash
