@@ -1,16 +1,22 @@
 # elbruno.Extensions.AI.Skills
 
+[![NuGet](https://img.shields.io/nuget/v/elbruno.Extensions.AI.Skills.svg)](https://www.nuget.org/packages/elbruno.Extensions.AI.Skills)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/elbruno.Extensions.AI.Skills.svg)](https://www.nuget.org/packages/elbruno.Extensions.AI.Skills)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/elbruno/elbruno-agentskills/blob/master/LICENSE)
+
 A .NET 10 library implementing the [Agent Skills specification](https://agentskills.io/specification) — an open format by Anthropic for giving AI agents new capabilities and expertise.
 
 Built with Microsoft.Extensions.AI, the C# MCP SDK, and modern .NET patterns.
 
+**GitHub**: https://github.com/elbruno/elbruno-agentskills
+
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| **elbruno.Extensions.AI.Skills.Core** | Models, SKILL.md parser, validator, and prompt XML generator. Minimal dependencies. |
-| **elbruno.Extensions.AI.Skills** | DI extensions, `IChatClient` middleware, `ISkillProvider`, and MCP bridge. |
-| **elbruno.Extensions.AI.Skills.Cli** | .NET global tool for validating skills and generating prompt XML. |
+| Package | NuGet | Description |
+|---------|-------|-------------|
+| **elbruno.Extensions.AI.Skills.Core** | [![NuGet](https://img.shields.io/nuget/v/elbruno.Extensions.AI.Skills.Core.svg)](https://www.nuget.org/packages/elbruno.Extensions.AI.Skills.Core) | Models, SKILL.md parser, validator, and prompt XML generator. Minimal dependencies. |
+| **elbruno.Extensions.AI.Skills** | [![NuGet](https://img.shields.io/nuget/v/elbruno.Extensions.AI.Skills.svg)](https://www.nuget.org/packages/elbruno.Extensions.AI.Skills) | DI extensions, `IChatClient` middleware, `ISkillProvider`, and MCP bridge. |
+| **elbruno.Extensions.AI.Skills.Cli** | [![NuGet](https://img.shields.io/nuget/v/elbruno.Extensions.AI.Skills.Cli.svg)](https://www.nuget.org/packages/elbruno.Extensions.AI.Skills.Cli) | .NET global tool for validating skills and generating prompt XML. |
 
 ## Quick Start
 
