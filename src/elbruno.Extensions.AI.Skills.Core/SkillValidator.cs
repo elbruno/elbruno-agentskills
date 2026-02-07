@@ -191,7 +191,7 @@ public static class SkillValidator
     {
         var messages = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var fullSkillDir = Path.GetFullPath(skillDir);
+        var fullSkillDir = Path.GetFullPath(skillDir) + Path.DirectorySeparatorChar;
 
         foreach (Match match in FileReferencePattern.Matches(body))
         {
@@ -200,20 +200,18 @@ public static class SkillValidator
             if (!seen.Add(relativePath))
                 continue;
 
-            // Check for path traversal attempts
-            if (relativePath.Contains(".."))
+            var resolvedPath = Path.GetFullPath(Path.Combine(
+                skillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+            // Always validate containment — catches path traversal regardless of `..` presence
+            if (!resolvedPath.StartsWith(fullSkillDir, StringComparison.OrdinalIgnoreCase))
             {
-                var resolvedPath = Path.GetFullPath(Path.Combine(fullSkillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-                if (!resolvedPath.StartsWith(fullSkillDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                {
-                    messages.Add($"File reference '{relativePath}' escapes the skill directory");
-                    continue;
-                }
+                messages.Add($"File reference '{relativePath}' escapes the skill directory");
+                continue;
             }
 
             // Check if referenced file exists
-            var absPath = Path.GetFullPath(Path.Combine(fullSkillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-            if (!File.Exists(absPath))
+            if (!File.Exists(resolvedPath))
             {
                 messages.Add($"{WarningPrefix}Body references '{relativePath}' but the file does not exist");
             }
