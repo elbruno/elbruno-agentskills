@@ -143,7 +143,7 @@ public static class SkillParser
     /// where path starts with scripts/, references/, or assets/.
     /// </summary>
     private static readonly Regex FileReferencePattern = new(
-        @"(?:\[(?:[^\]]*)\]\((?<path>(?:scripts|references|assets)/[^\)]+)\))|(?:`(?<path2>(?:scripts|references|assets)/[^`]+)`)",
+        @"(?:\[[^\]]*\]\(|`)(?<path>(?:scripts|references|assets)/[^\)`]+)[`\)]",
         RegexOptions.Compiled);
 
     /// <summary>
@@ -161,16 +161,12 @@ public static class SkillParser
 
         foreach (Match match in FileReferencePattern.Matches(body))
         {
-            var relativePath = match.Groups["path"].Success
-                ? match.Groups["path"].Value
-                : match.Groups["path2"].Value;
-
-            relativePath = relativePath.Trim();
+            var relativePath = match.Groups["path"].Value.Trim();
 
             if (!seen.Add(relativePath))
                 continue;
 
-            var absPath = Path.GetFullPath(Path.Combine(skillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+            var absPath = ResolveRelativePath(skillDir, relativePath);
 
             if (!File.Exists(absPath))
                 continue;
@@ -205,11 +201,12 @@ public static class SkillParser
     public static string ReadResource(string skillDir, string relativePath)
     {
         var fullSkillDir = Path.GetFullPath(skillDir);
-        var resolvedPath = Path.GetFullPath(Path.Combine(fullSkillDir, relativePath));
+        var resolvedPath = ResolveRelativePath(fullSkillDir, relativePath);
 
-        // Ensure the resolved path is within the skill directory (prevent path traversal)
-        if (!resolvedPath.StartsWith(fullSkillDir + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            && !resolvedPath.Equals(fullSkillDir, StringComparison.Ordinal))
+        // Ensure the resolved path is within the skill directory (prevent path traversal).
+        // Uses OrdinalIgnoreCase to handle case-insensitive file systems (Windows, macOS).
+        if (!resolvedPath.StartsWith(fullSkillDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            && !resolvedPath.Equals(fullSkillDir, StringComparison.OrdinalIgnoreCase))
         {
             throw new SkillParseException(
                 $"Resource path '{relativePath}' escapes the skill directory '{skillDir}'");
@@ -222,6 +219,14 @@ public static class SkillParser
         }
 
         return File.ReadAllText(resolvedPath);
+    }
+
+    /// <summary>
+    /// Resolves a forward-slash relative path to an absolute path within a skill directory.
+    /// </summary>
+    private static string ResolveRelativePath(string skillDir, string relativePath)
+    {
+        return Path.GetFullPath(Path.Combine(skillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
     }
 
     private static SkillProperties ExtractProperties(Dictionary<string, object> metadata)
