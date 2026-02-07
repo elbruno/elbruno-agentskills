@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace elbruno.Extensions.AI.Skills.Core;
 
@@ -9,9 +10,16 @@ namespace elbruno.Extensions.AI.Skills.Core;
 public static class SkillValidator
 {
     /// <summary>
+    /// Prefix used to distinguish warnings from errors in validation results.
+    /// Warnings are non-blocking issues; errors indicate spec violations.
+    /// </summary>
+    public const string WarningPrefix = "Warning: ";
+
+    /// <summary>
     /// Validates a skill directory.
     /// </summary>
-    /// <returns>List of validation error messages. Empty list means valid.</returns>
+    /// <returns>List of validation messages. Messages prefixed with "Warning: " are non-blocking.
+    /// An empty list means the skill is fully valid with no warnings.</returns>
     public static IReadOnlyList<string> Validate(string skillDir)
     {
         if (!Directory.Exists(skillDir))
@@ -22,17 +30,22 @@ public static class SkillValidator
             return ["Missing required file: SKILL.md"];
 
         Dictionary<string, object> metadata;
+        string body;
         try
         {
             var content = File.ReadAllText(skillMd);
-            (metadata, _) = SkillParser.ParseFrontmatter(content);
+            (metadata, body) = SkillParser.ParseFrontmatter(content);
         }
         catch (SkillParseException ex)
         {
             return [ex.Message];
         }
 
-        return ValidateMetadata(metadata, skillDir);
+        var errors = new List<string>(ValidateMetadata(metadata, skillDir));
+        errors.AddRange(ValidateSubDirectories(skillDir));
+        errors.AddRange(ValidateFileReferences(body, skillDir));
+
+        return errors;
     }
 
     /// <summary>
@@ -142,5 +155,68 @@ public static class SkillValidator
             errors.Add($"Unexpected fields in frontmatter: {string.Join(", ", extraFields)}. Only [{string.Join(", ", SkillConstants.AllowedFields.OrderBy(f => f))}] are allowed.");
 
         return errors;
+    }
+
+    /// <summary>
+    /// Regex matching Markdown links and inline code references to resource subdirectories.
+    /// </summary>
+    private static readonly Regex FileReferencePattern = new(
+        @"(?:\[[^\]]*\]\(|`)(?<path>(?:scripts|references|assets)/[^\)`]+)[`\)]",
+        RegexOptions.Compiled);
+
+    /// <summary>
+    /// Warns if <c>scripts/</c>, <c>references/</c>, or <c>assets/</c> subdirectories exist but contain zero files.
+    /// </summary>
+    private static IReadOnlyList<string> ValidateSubDirectories(string skillDir)
+    {
+        var warnings = new List<string>();
+
+        foreach (var subDir in new[] { SkillConstants.ScriptsDirectory, SkillConstants.ReferencesDirectory, SkillConstants.AssetsDirectory })
+        {
+            var dirPath = Path.Combine(skillDir, subDir);
+            if (Directory.Exists(dirPath) && !Directory.EnumerateFiles(dirPath).Any())
+            {
+                warnings.Add($"{WarningPrefix}Directory '{subDir}/' exists but contains no files");
+            }
+        }
+
+        return warnings;
+    }
+
+    /// <summary>
+    /// Warns if the body references files via Markdown links or inline code that don't exist on disk.
+    /// Also validates that file references don't escape the skill directory via path traversal.
+    /// </summary>
+    private static IReadOnlyList<string> ValidateFileReferences(string body, string skillDir)
+    {
+        var messages = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var fullSkillDir = Path.GetFullPath(skillDir) + Path.DirectorySeparatorChar;
+
+        foreach (Match match in FileReferencePattern.Matches(body))
+        {
+            var relativePath = match.Groups["path"].Value.Trim();
+
+            if (!seen.Add(relativePath))
+                continue;
+
+            var resolvedPath = Path.GetFullPath(Path.Combine(
+                skillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+            // Always validate containment — catches path traversal regardless of `..` presence
+            if (!resolvedPath.StartsWith(fullSkillDir, StringComparison.OrdinalIgnoreCase))
+            {
+                messages.Add($"File reference '{relativePath}' escapes the skill directory");
+                continue;
+            }
+
+            // Check if referenced file exists
+            if (!File.Exists(resolvedPath))
+            {
+                messages.Add($"{WarningPrefix}Body references '{relativePath}' but the file does not exist");
+            }
+        }
+
+        return messages;
     }
 }

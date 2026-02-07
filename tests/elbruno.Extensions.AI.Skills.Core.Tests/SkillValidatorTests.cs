@@ -176,4 +176,177 @@ public class SkillValidatorTests : IDisposable
         var errors = SkillValidator.Validate(dir);
         Assert.Empty(errors);
     }
+
+    // --- Phase 3: Sub-directory and file reference validation ---
+
+    [Fact]
+    public void Validate_EmptyScriptsDir_ReturnsWarning()
+    {
+        var dir = CreateSkillDir("empty-scripts", """
+            ---
+            name: empty-scripts
+            description: Skill with empty scripts dir.
+            ---
+            Body
+            """);
+        Directory.CreateDirectory(Path.Combine(dir, "scripts"));
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Single(results);
+        Assert.StartsWith(SkillValidator.WarningPrefix, results[0]);
+        Assert.Contains("scripts/", results[0]);
+        Assert.Contains("no files", results[0]);
+    }
+
+    [Fact]
+    public void Validate_EmptyReferencesDir_ReturnsWarning()
+    {
+        var dir = CreateSkillDir("empty-refs", """
+            ---
+            name: empty-refs
+            description: Skill with empty references dir.
+            ---
+            Body
+            """);
+        Directory.CreateDirectory(Path.Combine(dir, "references"));
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Single(results);
+        Assert.StartsWith(SkillValidator.WarningPrefix, results[0]);
+        Assert.Contains("references/", results[0]);
+    }
+
+    [Fact]
+    public void Validate_EmptyAssetsDir_ReturnsWarning()
+    {
+        var dir = CreateSkillDir("empty-assets", """
+            ---
+            name: empty-assets
+            description: Skill with empty assets dir.
+            ---
+            Body
+            """);
+        Directory.CreateDirectory(Path.Combine(dir, "assets"));
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Single(results);
+        Assert.StartsWith(SkillValidator.WarningPrefix, results[0]);
+        Assert.Contains("assets/", results[0]);
+    }
+
+    [Fact]
+    public void Validate_NonEmptySubDir_NoWarning()
+    {
+        var dir = CreateSkillDir("full-subdir", """
+            ---
+            name: full-subdir
+            description: Skill with populated scripts dir.
+            ---
+            Body
+            """);
+        var scriptsDir = Path.Combine(dir, "scripts");
+        Directory.CreateDirectory(scriptsDir);
+        File.WriteAllText(Path.Combine(scriptsDir, "run.sh"), "echo hi");
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void Validate_BrokenFileReference_ReturnsWarning()
+    {
+        var dir = CreateSkillDir("broken-ref", """
+            ---
+            name: broken-ref
+            description: Skill with broken file reference.
+            ---
+            See [the script](scripts/missing.py) for details.
+            """);
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Single(results);
+        Assert.StartsWith(SkillValidator.WarningPrefix, results[0]);
+        Assert.Contains("scripts/missing.py", results[0]);
+        Assert.Contains("does not exist", results[0]);
+    }
+
+    [Fact]
+    public void Validate_ValidFileReference_NoWarning()
+    {
+        var dir = CreateSkillDir("valid-ref", """
+            ---
+            name: valid-ref
+            description: Skill with valid file reference.
+            ---
+            See [the script](scripts/run.sh) for details.
+            """);
+        var scriptsDir = Path.Combine(dir, "scripts");
+        Directory.CreateDirectory(scriptsDir);
+        File.WriteAllText(Path.Combine(scriptsDir, "run.sh"), "echo hi");
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void Validate_PathTraversalInReference_ReturnsError()
+    {
+        var dir = CreateSkillDir("traversal-ref", """
+            ---
+            name: traversal-ref
+            description: Skill with path traversal reference.
+            ---
+            See [escape](scripts/../../etc/passwd) for details.
+            """);
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Single(results);
+        Assert.DoesNotContain(SkillValidator.WarningPrefix, results[0]);
+        Assert.Contains("escapes", results[0]);
+    }
+
+    [Fact]
+    public void Validate_MultipleEmptyDirs_ReturnsMultipleWarnings()
+    {
+        var dir = CreateSkillDir("multi-empty", """
+            ---
+            name: multi-empty
+            description: Skill with multiple empty dirs.
+            ---
+            Body
+            """);
+        Directory.CreateDirectory(Path.Combine(dir, "scripts"));
+        Directory.CreateDirectory(Path.Combine(dir, "references"));
+        Directory.CreateDirectory(Path.Combine(dir, "assets"));
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Equal(3, results.Count);
+        Assert.All(results, r => Assert.StartsWith(SkillValidator.WarningPrefix, r));
+    }
+
+    [Fact]
+    public void Validate_InlineCodeBrokenRef_ReturnsWarning()
+    {
+        var dir = CreateSkillDir("inline-broken", """
+            ---
+            name: inline-broken
+            description: Skill with broken inline code ref.
+            ---
+            Use `references/REFERENCE.md` for more info.
+            """);
+
+        var results = SkillValidator.Validate(dir);
+
+        Assert.Single(results);
+        Assert.StartsWith(SkillValidator.WarningPrefix, results[0]);
+        Assert.Contains("references/REFERENCE.md", results[0]);
+    }
 }

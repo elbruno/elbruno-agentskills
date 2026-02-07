@@ -10,6 +10,9 @@ public static class SkillConstants
     public const int MaxCompatibilityLength = 500;
     public const string SkillFileName = "SKILL.md";
     public const string SkillFileNameLower = "skill.md";
+    public const string ScriptsDirectory = "scripts";
+    public const string ReferencesDirectory = "references";
+    public const string AssetsDirectory = "assets";
 
     /// <summary>
     /// Allowed top-level fields in SKILL.md frontmatter.
