@@ -306,4 +306,231 @@ public class SkillParserTests : IDisposable
         Assert.Empty(info.References);
         Assert.Empty(info.Assets);
     }
+
+    // --- ResolveFileReferences tests ---
+
+    [Fact]
+    public void ResolveFileReferences_FindsMarkdownLinks()
+    {
+        var dir = CreateSkillDir("ref-link-skill", """
+            ---
+            name: ref-link-skill
+            description: Skill with markdown links.
+            ---
+            See [the script](scripts/extract.py) for details.
+            """);
+        var scriptsDir = Path.Combine(dir, "scripts");
+        Directory.CreateDirectory(scriptsDir);
+        File.WriteAllText(Path.Combine(scriptsDir, "extract.py"), "print('hello')");
+
+        var refs = SkillParser.ResolveFileReferences("See [the script](scripts/extract.py) for details.", dir);
+
+        Assert.Single(refs);
+        Assert.Equal("scripts/extract.py", refs[0].RelativePath);
+        Assert.Equal("extract.py", refs[0].FileName);
+        Assert.Equal(SkillResourceType.Script, refs[0].Type);
+    }
+
+    [Fact]
+    public void ResolveFileReferences_FindsInlineCodeReferences()
+    {
+        var dir = CreateSkillDir("ref-code-skill", """
+            ---
+            name: ref-code-skill
+            description: Skill with inline code refs.
+            ---
+            Use `references/REFERENCE.md` for more info.
+            """);
+        var refsDir = Path.Combine(dir, "references");
+        Directory.CreateDirectory(refsDir);
+        File.WriteAllText(Path.Combine(refsDir, "REFERENCE.md"), "# Ref");
+
+        var refs = SkillParser.ResolveFileReferences("Use `references/REFERENCE.md` for more info.", dir);
+
+        Assert.Single(refs);
+        Assert.Equal("references/REFERENCE.md", refs[0].RelativePath);
+        Assert.Equal(SkillResourceType.Reference, refs[0].Type);
+    }
+
+    [Fact]
+    public void ResolveFileReferences_FindsMultipleReferences()
+    {
+        var dir = CreateSkillDir("multi-ref-skill", """
+            ---
+            name: multi-ref-skill
+            description: Skill with multiple refs.
+            ---
+            Body
+            """);
+        var scriptsDir = Path.Combine(dir, "scripts");
+        Directory.CreateDirectory(scriptsDir);
+        File.WriteAllText(Path.Combine(scriptsDir, "run.sh"), "echo hi");
+        var assetsDir = Path.Combine(dir, "assets");
+        Directory.CreateDirectory(assetsDir);
+        File.WriteAllText(Path.Combine(assetsDir, "template.md"), "# Template");
+
+        var body = "Run [this](scripts/run.sh) and use `assets/template.md`.";
+        var refs = SkillParser.ResolveFileReferences(body, dir);
+
+        Assert.Equal(2, refs.Count);
+        Assert.Contains(refs, r => r.RelativePath == "scripts/run.sh" && r.Type == SkillResourceType.Script);
+        Assert.Contains(refs, r => r.RelativePath == "assets/template.md" && r.Type == SkillResourceType.Asset);
+    }
+
+    [Fact]
+    public void ResolveFileReferences_IgnoresNonExistentFiles()
+    {
+        var dir = CreateSkillDir("missing-ref-skill", """
+            ---
+            name: missing-ref-skill
+            description: Skill referencing missing file.
+            ---
+            Body
+            """);
+
+        var refs = SkillParser.ResolveFileReferences("See [missing](scripts/nonexistent.py).", dir);
+
+        Assert.Empty(refs);
+    }
+
+    [Fact]
+    public void ResolveFileReferences_DeduplicatesReferences()
+    {
+        var dir = CreateSkillDir("dedup-ref-skill", """
+            ---
+            name: dedup-ref-skill
+            description: Skill with duplicate refs.
+            ---
+            Body
+            """);
+        var scriptsDir = Path.Combine(dir, "scripts");
+        Directory.CreateDirectory(scriptsDir);
+        File.WriteAllText(Path.Combine(scriptsDir, "run.sh"), "echo hi");
+
+        var body = "Use [run](scripts/run.sh) and also `scripts/run.sh`.";
+        var refs = SkillParser.ResolveFileReferences(body, dir);
+
+        Assert.Single(refs);
+    }
+
+    [Fact]
+    public void ResolveFileReferences_IgnoresNonResourcePaths()
+    {
+        var dir = CreateSkillDir("non-resource-skill", """
+            ---
+            name: non-resource-skill
+            description: Skill with non-resource links.
+            ---
+            Body
+            """);
+
+        var body = "See [docs](docs/README.md) and [link](https://example.com).";
+        var refs = SkillParser.ResolveFileReferences(body, dir);
+
+        Assert.Empty(refs);
+    }
+
+    [Fact]
+    public void ResolveFileReferences_ReturnsEmptyForBodyWithNoLinks()
+    {
+        var dir = CreateSkillDir("no-link-skill", """
+            ---
+            name: no-link-skill
+            description: Skill with no links.
+            ---
+            Body
+            """);
+
+        var refs = SkillParser.ResolveFileReferences("Just plain text, no links.", dir);
+
+        Assert.Empty(refs);
+    }
+
+    // --- ReadResource tests ---
+
+    [Fact]
+    public void ReadResource_ReturnsFileContent()
+    {
+        var dir = CreateSkillDir("read-resource-skill", """
+            ---
+            name: read-resource-skill
+            description: Skill for reading resources.
+            ---
+            Body
+            """);
+        var scriptsDir = Path.Combine(dir, "scripts");
+        Directory.CreateDirectory(scriptsDir);
+        File.WriteAllText(Path.Combine(scriptsDir, "extract.py"), "print('hello world')");
+
+        var content = SkillParser.ReadResource(dir, "scripts/extract.py");
+
+        Assert.Equal("print('hello world')", content);
+    }
+
+    [Fact]
+    public void ReadResource_ThrowsOnMissingFile()
+    {
+        var dir = CreateSkillDir("missing-resource-skill", """
+            ---
+            name: missing-resource-skill
+            description: Skill with missing resource.
+            ---
+            Body
+            """);
+
+        var ex = Assert.Throws<SkillParseException>(
+            () => SkillParser.ReadResource(dir, "scripts/nonexistent.py"));
+        Assert.Contains("not found", ex.Message);
+    }
+
+    [Fact]
+    public void ReadResource_ThrowsOnPathTraversal_DotDot()
+    {
+        var dir = CreateSkillDir("traversal-skill", """
+            ---
+            name: traversal-skill
+            description: Skill for path traversal test.
+            ---
+            Body
+            """);
+
+        var ex = Assert.Throws<SkillParseException>(
+            () => SkillParser.ReadResource(dir, "../../../etc/passwd"));
+        Assert.Contains("escapes", ex.Message);
+    }
+
+    [Fact]
+    public void ReadResource_ThrowsOnPathTraversal_EncodedDots()
+    {
+        var dir = CreateSkillDir("traversal-encoded-skill", """
+            ---
+            name: traversal-encoded-skill
+            description: Skill for encoded traversal test.
+            ---
+            Body
+            """);
+
+        var ex = Assert.Throws<SkillParseException>(
+            () => SkillParser.ReadResource(dir, "scripts/../../etc/passwd"));
+        Assert.Contains("escapes", ex.Message);
+    }
+
+    [Fact]
+    public void ReadResource_ReadsReferenceFile()
+    {
+        var dir = CreateSkillDir("read-ref-skill", """
+            ---
+            name: read-ref-skill
+            description: Read a reference file.
+            ---
+            Body
+            """);
+        var refsDir = Path.Combine(dir, "references");
+        Directory.CreateDirectory(refsDir);
+        File.WriteAllText(Path.Combine(refsDir, "REFERENCE.md"), "# API Reference\nDetails here.");
+
+        var content = SkillParser.ReadResource(dir, "references/REFERENCE.md");
+
+        Assert.Equal("# API Reference\nDetails here.", content);
+    }
 }

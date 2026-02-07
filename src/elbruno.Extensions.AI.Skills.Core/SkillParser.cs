@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -125,6 +126,102 @@ public static class SkillParser
                     Path.GetExtension(absPath));
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Known resource subdirectory names mapped to their <see cref="SkillResourceType"/>.
+    /// </summary>
+    private static readonly Dictionary<string, SkillResourceType> ResourceDirectoryTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [SkillConstants.ScriptsDirectory] = SkillResourceType.Script,
+        [SkillConstants.ReferencesDirectory] = SkillResourceType.Reference,
+        [SkillConstants.AssetsDirectory] = SkillResourceType.Asset,
+    };
+
+    /// <summary>
+    /// Regex matching Markdown links: [text](path) and inline code: `path`
+    /// where path starts with scripts/, references/, or assets/.
+    /// </summary>
+    private static readonly Regex FileReferencePattern = new(
+        @"(?:\[(?:[^\]]*)\]\((?<path>(?:scripts|references|assets)/[^\)]+)\))|(?:`(?<path2>(?:scripts|references|assets)/[^`]+)`)",
+        RegexOptions.Compiled);
+
+    /// <summary>
+    /// Parses Markdown links and inline code references in the skill body that match
+    /// relative paths to <c>scripts/</c>, <c>references/</c>, or <c>assets/</c> subdirectories.
+    /// Only returns references to files that actually exist on disk.
+    /// </summary>
+    /// <param name="body">The Markdown body content of a SKILL.md file.</param>
+    /// <param name="skillDir">Absolute path to the skill directory.</param>
+    /// <returns>List of <see cref="SkillResource"/> descriptors for referenced files that exist.</returns>
+    public static IReadOnlyList<SkillResource> ResolveFileReferences(string body, string skillDir)
+    {
+        var results = new List<SkillResource>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (Match match in FileReferencePattern.Matches(body))
+        {
+            var relativePath = match.Groups["path"].Success
+                ? match.Groups["path"].Value
+                : match.Groups["path2"].Value;
+
+            relativePath = relativePath.Trim();
+
+            if (!seen.Add(relativePath))
+                continue;
+
+            var absPath = Path.GetFullPath(Path.Combine(skillDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+            if (!File.Exists(absPath))
+                continue;
+
+            // Determine resource type from the first path segment
+            var firstSegment = relativePath.Split('/')[0];
+            if (!ResourceDirectoryTypes.TryGetValue(firstSegment, out var resourceType))
+                continue;
+
+            var fileName = Path.GetFileName(absPath);
+            results.Add(new SkillResource(
+                resourceType,
+                relativePath,
+                absPath,
+                fileName,
+                Path.GetExtension(absPath)));
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Reads the content of a resource file within a skill directory.
+    /// Validates that the relative path stays within the skill directory (prevents path traversal).
+    /// </summary>
+    /// <param name="skillDir">Absolute path to the skill directory.</param>
+    /// <param name="relativePath">Relative path from the skill root, e.g. "scripts/extract.py".</param>
+    /// <returns>The file content as a string.</returns>
+    /// <exception cref="SkillParseException">
+    /// Thrown if the file does not exist or if the resolved path escapes the skill directory.
+    /// </exception>
+    public static string ReadResource(string skillDir, string relativePath)
+    {
+        var fullSkillDir = Path.GetFullPath(skillDir);
+        var resolvedPath = Path.GetFullPath(Path.Combine(fullSkillDir, relativePath));
+
+        // Ensure the resolved path is within the skill directory (prevent path traversal)
+        if (!resolvedPath.StartsWith(fullSkillDir + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            && !resolvedPath.Equals(fullSkillDir, StringComparison.Ordinal))
+        {
+            throw new SkillParseException(
+                $"Resource path '{relativePath}' escapes the skill directory '{skillDir}'");
+        }
+
+        if (!File.Exists(resolvedPath))
+        {
+            throw new SkillParseException(
+                $"Resource file not found: '{relativePath}' in skill directory '{skillDir}'");
+        }
+
+        return File.ReadAllText(resolvedPath);
     }
 
     private static SkillProperties ExtractProperties(Dictionary<string, object> metadata)
