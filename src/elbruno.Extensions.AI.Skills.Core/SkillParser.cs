@@ -82,7 +82,7 @@ public static class SkillParser
     }
 
     /// <summary>
-    /// Reads the full skill including properties, body, and location.
+    /// Reads the full skill including properties, body, location, and bundled resources.
     /// </summary>
     public static SkillInfo ReadSkill(string skillDir)
     {
@@ -93,7 +93,38 @@ public static class SkillParser
         var (metadata, body) = ParseFrontmatter(content);
         var properties = ExtractProperties(metadata);
 
-        return new SkillInfo(properties, body, Path.GetFullPath(skillMd));
+        var scripts = EnumerateResources(skillDir, SkillConstants.ScriptsDirectory, SkillResourceType.Script);
+        var references = EnumerateResources(skillDir, SkillConstants.ReferencesDirectory, SkillResourceType.Reference);
+        var assets = EnumerateResources(skillDir, SkillConstants.AssetsDirectory, SkillResourceType.Asset);
+
+        return new SkillInfo(properties, body, Path.GetFullPath(skillMd), scripts, references, assets);
+    }
+
+    /// <summary>
+    /// Enumerates files in a skill subdirectory and returns them as <see cref="SkillResource"/> descriptors.
+    /// Only scans one level deep (no recursive enumeration).
+    /// </summary>
+    private static IReadOnlyList<SkillResource> EnumerateResources(
+        string skillDir, string subDirectory, SkillResourceType resourceType)
+    {
+        var dirPath = Path.Combine(skillDir, subDirectory);
+        if (!Directory.Exists(dirPath))
+            return Array.Empty<SkillResource>();
+
+        return Directory.EnumerateFiles(dirPath)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .Select(absPath =>
+            {
+                var fileName = Path.GetFileName(absPath);
+                var relativePath = Path.Combine(subDirectory, fileName).Replace('\\', '/');
+                return new SkillResource(
+                    resourceType,
+                    relativePath,
+                    Path.GetFullPath(absPath),
+                    fileName,
+                    Path.GetExtension(absPath));
+            })
+            .ToList();
     }
 
     private static SkillProperties ExtractProperties(Dictionary<string, object> metadata)
